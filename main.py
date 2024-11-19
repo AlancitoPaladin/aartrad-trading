@@ -26,7 +26,7 @@ myUserCollection = myDb["users"]
 criptomonedas = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'XRP-USD', 'LTC-USD']
 
 
-def get_data(cripto, start='2024-10-01', end='2024-11-19'):
+def get_data(cripto, start='2024-11-18', end='2024-11-19'):
     data = yf.download(cripto, start=start, end=end, interval='1h')
     return data
 
