@@ -10,7 +10,7 @@ from bson.errors import InvalidId
 from werkzeug.security import generate_password_hash, check_password_hash
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-
+import pandas as pd
 
 app = Flask(__name__)
 
@@ -23,44 +23,56 @@ mySimulateCollection = myDb["simulate"]
 myCryptosCollection = myDb["cryptos"]
 myUserCollection = myDb["users"]
 
-criptomonedas = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'XRP-USD', 'LTC-USD']
+criptomonedas = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'SOL-USD', 'DOGE-USD']
 
 
-def get_data(cripto, start='2024-11-18', end='2024-11-19'):
-    data = yf.download(cripto, start=start, end=end, interval='1h')
-    return data
+@app.route('/')
+def home():
+    return jsonify({"message": "API is running. Use /simulate to run simulations."}), 200
 
 
-# Monte Carlo simulation function
-def monte_carlo(inicial_price, mu, sigma, Lambda, a, b, days, simulations):
+def get_data(cripto, start='2024-11-17', end='2024-11-18'):
+    try:
+        data = yf.download(cripto, start=start, end=end, interval='1h')
+        return data
+    except Exception as e:
+        print(f"Error al descargar datos para {cripto}: {e}")
+        return None
+
+
+def monte_carlo_jump_diffusion(initial_price, mu, sigma, Lambda, a, b, days, simulations, kappa, theta, sigma_v):
     dt = 1 / days
-    predictions = np.zeros((simulations, days, 4))  # [open, high, low, close]
+    predictions = np.zeros((simulations, days, 4))  # Open, High, Low, Close
 
     for i in range(simulations):
-        inicial_price_simulation = inicial_price * (1 + np.random.normal(0, 0.1))
+        initial_price_simulation = initial_price * (1 + np.random.normal(0, 0.1))
 
-        # Initialize first candle values
-        predictions[i, 0, 0] = inicial_price_simulation  # Open
-        predictions[i, 0, 3] = inicial_price_simulation  # Close
-        predictions[i, 0, 1] = inicial_price_simulation * (0.8 + np.random.uniform(0, 0.02))  # High
-        predictions[i, 0, 2] = inicial_price_simulation * (0.8 - np.random.uniform(0, 0.02))  # Low
+        predictions[i, 0, 0] = initial_price_simulation  # Open
+        predictions[i, 0, 3] = initial_price_simulation  # Close
+        predictions[i, 0, 1] = initial_price_simulation  # High
+        predictions[i, 0, 2] = initial_price_simulation  # Low
+
+        V = sigma ** 2
 
         for t in range(1, days):
             epsilon = np.random.normal(0, 1)
             jump = np.random.poisson(Lambda * dt)
             jump_magnitude = np.exp(a + b * np.random.normal()) if jump > 0 else 1
 
-            variation = np.random.normal(0, 0.1)
+            V = max(V + kappa * (theta - V) * dt + sigma_v * np.sqrt(V) * np.random.normal() * np.sqrt(dt), 0)
+
             price = predictions[i, t - 1, 3] * np.exp(
-                (mu - 0.5 * sigma ** 2) * dt + sigma * epsilon * np.sqrt(dt)) * jump_magnitude * (1 + variation)
+                (mu - 0.5 * V) * dt + np.sqrt(V) * epsilon * np.sqrt(dt)
+            ) * jump_magnitude
+
             price = max(price, 0.01)
 
             predictions[i, t, 0] = predictions[i, t - 1, 3]  # Open
             predictions[i, t, 3] = price  # Close
-            predictions[i, t, 1] = max(predictions[i, t, 0], price * (1 + np.random.uniform(0.02, 0.1)))  # High
-            predictions[i, t, 2] = min(predictions[i, t, 0], price * (1 - np.random.uniform(0.02, 0.1)))  # Low
+            predictions[i, t, 1] = max(predictions[i, t, 0], price * (1 + np.random.uniform(0.009, 0.025)))  # High
+            predictions[i, t, 2] = min(predictions[i, t, 0], price * (1 - np.random.uniform(0.009, 0.03)))  # Low
 
-    return predictions.tolist()
+        return predictions.tolist()
 
 
 @app.route('/simulate', methods=['GET'])
@@ -72,28 +84,29 @@ def simulate():
             data = get_data(cripto)
 
             if data is not None and not data.empty:
-                inicial_price = data['Close'].iloc[-1]
+                initial_price = data['Close'].iloc[-1]
+                initial_price_float = float(initial_price.iloc[0])
 
-                if np.isnan(inicial_price):
-                    continue
-
-                returns = np.diff(np.log(data['Close'].values))
-                mu = np.mean(returns)
-                sigma = np.std(returns)
-
-                days = 30
-                simulations = 10
+                mu = 0.1
+                sigma = 0.2
                 Lambda = 0.1
                 a = 0.1
-                b = 0.2
+                b = 0.1
+                days = 90
+                simulations = 1
+                kappa = 0.5
+                theta = 0.2
+                sigma_v = 0.1
 
-                resultados = monte_carlo(inicial_price, mu, sigma, Lambda, a, b, days, simulations)
+                resultados = monte_carlo_jump_diffusion(
+                    initial_price_float, mu, sigma, Lambda, a, b, days, simulations,
+                    kappa, theta, sigma_v
+                )
 
                 simulation_document = {
                     "crypto": cripto,
                     "simulation": resultados
                 }
-
                 mySimulateCollection.insert_one(simulation_document)
 
     except Exception as e:
