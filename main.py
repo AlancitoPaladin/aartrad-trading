@@ -1,3 +1,4 @@
+import os
 import json
 from flask import Flask, jsonify, request
 import pymongo
@@ -7,17 +8,21 @@ import numpy as np
 from bson import json_util
 from bson.errors import InvalidId
 from werkzeug.security import generate_password_hash, check_password_hash
+from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+
 
 app = Flask(__name__)
 
-# MongoDB Connection
-myClient = pymongo.MongoClient("mongodb://localhost:27017")
+uri = "mongodb+srv://alancarlos032104:Alan210304@arthulan.gx9ug.mongodb.net/cryptosimTwo?retryWrites=true&w=majority&appName=arthulan"
+
+myClient = MongoClient(uri, server_api=ServerApi('1'))
+
 myDb = myClient["cryptosimTwo"]
 mySimulateCollection = myDb["simulate"]
 myCryptosCollection = myDb["cryptos"]
 myUserCollection = myDb["users"]
 
-# Cryptocurrency symbols for simulation
 criptomonedas = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'XRP-USD', 'LTC-USD']
 
 
@@ -171,7 +176,7 @@ def get_wallet():
     try:
         cryptos = list(myCryptosCollection.find({}, {"_id": 1, "Nombre": 1, "Cantidad": 1, "image": 1}))
         for crypto in cryptos:
-            crypto['_id'] = str(crypto['_id'])  # Convierte el ID para enviarlo como JSON
+            crypto['_id'] = str(crypto['_id'])
         return jsonify(cryptos), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -224,7 +229,6 @@ def register_user():
     email = data.get('email')
     password = data.get('password')
 
-    # Verificación de existencia previa
     if myUserCollection.find_one({"email": email}):
         return jsonify({"error": "Email ya registrado"}), 409
 
@@ -237,10 +241,9 @@ def register_user():
         "middleName": data.get('middleName'),
         "email": email,
         "password": hashed_password,
-        "saldo": 0.0  # Saldo inicializado en 0.0
+        "saldo": 0.0
     }
 
-    # Insertar usuario en la colección
     myUserCollection.insert_one(user)
     return jsonify({"message": "Usuario registrado exitosamente"}), 201
 
@@ -254,13 +257,12 @@ def login_user():
     user = myUserCollection.find_one({"email": email})
     if user and check_password_hash(user['password'], password):
         user["_id"] = str(user["_id"])
-        # Incluimos el nombre completo y el saldo en la respuesta
         user_data = {
             "id": user["_id"],
             "firstName": user["firstName"],
             "lastName": user["lastName"],
             "email": user["email"],
-            "saldo": user["saldo"]  # Incluye el saldo
+            "saldo": user["saldo"]
         }
         return jsonify(user_data)
     else:
