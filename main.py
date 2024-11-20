@@ -31,7 +31,7 @@ def home():
     return jsonify({"message": "API is running."}), 200
 
 
-def get_data(cripto, start='2022-01-01', end='2024-11-18'):
+def get_data(cripto, start='2023-01-01', end='2024-11-19'):
     try:
         data = yf.download(cripto, start=start, end=end, interval='1h')
         return data
@@ -42,7 +42,7 @@ def get_data(cripto, start='2022-01-01', end='2024-11-18'):
 
 def monte_carlo_jump_diffusion(initial_price, mu, sigma, Lambda, a, b, days, simulations, kappa, theta, sigma_v):
     dt = 1 / days
-    predictions = np.zeros((simulations, days, 4))  # Open, High, Low, Close
+    predictions = np.zeros((simulations, days, 4))
 
     for i in range(simulations):
         initial_price_simulation = initial_price * (1 + np.random.normal(0, 0.1))
@@ -67,10 +67,10 @@ def monte_carlo_jump_diffusion(initial_price, mu, sigma, Lambda, a, b, days, sim
 
             price = max(price, 0.01)
 
-            predictions[i, t, 0] = predictions[i, t - 1, 3]  # Open
-            predictions[i, t, 3] = price  # Close
-            predictions[i, t, 1] = max(predictions[i, t, 0], price * (1 + np.random.uniform(0.009, 0.025)))  # High
-            predictions[i, t, 2] = min(predictions[i, t, 0], price * (1 - np.random.uniform(0.009, 0.03)))  # Low
+            predictions[i, t, 0] = predictions[i, t - 1, 3]
+            predictions[i, t, 3] = price
+            predictions[i, t, 1] = max(predictions[i, t, 0], price * (1 + np.random.uniform(0.009, 0.025)))
+            predictions[i, t, 2] = min(predictions[i, t, 0], price * (1 - np.random.uniform(0.009, 0.03)))
 
         return predictions.tolist()
 
@@ -92,7 +92,7 @@ def simulate():
                 Lambda = 0.1
                 a = 0.1
                 b = 0.1
-                days = 90
+                days = 120
                 simulations = 1000000
                 kappa = 0.5
                 theta = 0.2
@@ -142,9 +142,9 @@ def cryptos_data():
         {"Nombre": "Ethereum", "Precio": get_price("ETH-USD"), "Cantidad": 0,
          "image": "https://cryptologos.cc/logos/ethereum-eth-logo.png",
          "Descripcion": "Ethereum, plataforma de contratos inteligentes", "crypto": "ETH-USD"},
-        {"Nombre": "Litecoin", "Precio": get_price("LTC-USD"), "Cantidad": 0,
-         "image": "https://static.vecteezy.com/system/resources/previews/024/093/060/non_2x/litecoin-ltc-glass-crypto-coin-3d-illustration-free-png.png",
-         "Descripcion": "Litecoin, criptomoneda basada en el protocolo de Bitcoin", "crypto": "LTC-USD"},
+        {"Nombre": "Binance Coin", "Precio": get_price("BNB-USD"), "Cantidad": 0,
+         "image": "https://ckleon.com/wp-content/uploads/2022/06/binance-coin-bnb-logo-CD94CC6D31-seeklogo.com_.png",
+         "Descripcion": "Binance Coin, criptomoneda que utiliza movimiento de tokens", "crypto": "BNB-USD"},
         {"Nombre": "Cardano", "Precio": get_price("ADA-USD"), "Cantidad": 0,
          "image": "https://cdn4.iconfinder.com/data/icons/crypto-currency-and-coin-2/256/cardano_ada-1024.png",
          "Descripcion": "Cardano, plataforma de blockchain con enfoque científico", "crypto": "ADA-USD"},
@@ -247,7 +247,6 @@ def register_user():
 
     hashed_password = generate_password_hash(password)
 
-    # Crear usuario con saldo inicial en 0
     user = {
         "firstName": data.get('firstName'),
         "lastName": data.get('lastName'),
