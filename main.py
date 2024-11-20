@@ -28,10 +28,10 @@ criptomonedas = ['BTC-USD', 'ETH-USD', 'BNB-USD', 'ADA-USD', 'SOL-USD', 'DOGE-US
 
 @app.route('/')
 def home():
-    return jsonify({"message": "API is running. Use /simulate to run simulations."}), 200
+    return jsonify({"message": "API is running."}), 200
 
 
-def get_data(cripto, start='2024-11-17', end='2024-11-18'):
+def get_data(cripto, start='2022-01-01', end='2024-11-18'):
     try:
         data = yf.download(cripto, start=start, end=end, interval='1h')
         return data
@@ -93,7 +93,7 @@ def simulate():
                 a = 0.1
                 b = 0.1
                 days = 90
-                simulations = 1
+                simulations = 1000000
                 kappa = 0.5
                 theta = 0.2
                 sigma_v = 0.1
