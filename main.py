@@ -14,7 +14,6 @@ import pandas as pd
 
 app = Flask(__name__)
 
-uri = "mongodb+srv://alancarlos032104:Alan210304@arthulan.gx9ug.mongodb.net/cryptosimTwo?retryWrites=true&w=majority&appName=arthulan"
 
 myClient = MongoClient(uri, server_api=ServerApi('1'))
 
